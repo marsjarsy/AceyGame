@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77f76fefc0e73d4184cf86fd1488e0f, type: 3}
+  m_Name: AceyWalkRough
+  m_EditorClassIdentifier: 
+  fps: 8
+  totalDuration: 4
+  frames:
+  - {fileID: 21300000, guid: 998db2d5bfb4f814c8712aed7deb5e3f, type: 3}
+  - {fileID: 21300000, guid: aa74432bca1df3543845f63899ff2152, type: 3}
+  - {fileID: 21300000, guid: 126d7da8a4d241f4e8a644dbe53e718c, type: 3}
+  - {fileID: 21300000, guid: 250c1db3e7d895746a837034b9d043cd, type: 3}
+  framesDuration: 01000000010000000100000001000000
