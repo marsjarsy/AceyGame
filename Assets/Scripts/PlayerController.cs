@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering.LWRP;
+using UnityEngine.Experimental.Rendering.Universal;
 
 public class PlayerController : MonoBehaviour
 {
@@ -39,7 +41,11 @@ public class PlayerController : MonoBehaviour
     public float jumpBuffer = 0;
     public float coyoteBuffer = 0;
     private float coyoteY = 0;
-
+    //this should be able to do sword buffering
+    private bool hasSwung = false;
+    public bool isSwinging = false;
+    //used for the sword script to reference
+    public bool flipX = false;
 
     public bool startJump = false;
 
@@ -67,13 +73,15 @@ public class PlayerController : MonoBehaviour
     private Vector2 inputs = Vector2.zero;
     private bool jumpKey = false;
     private bool dashKey = false;
+    private bool gunKey = false;
+    private bool swordKey = false;
     public Rigidbody2D rb;
 
     public Transform leftTransform;
     public Transform rightTransform;
     public Transform groundTransform;
 
-
+    
 
     public float groundCheckSize = .25f;
 
@@ -85,10 +93,12 @@ public class PlayerController : MonoBehaviour
     public float slopeDownAngle;
     private Vector2 slopeNormalPerp;
     private float slopeDownAngleOld;
+    
 
     public LayerMask ground;
 
     public AfterImageController testController;
+    public GameObject swordPrefab;
 
 
     private void Awake()
@@ -100,7 +110,7 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         //debug thing,remove later please
-        if (Input.GetKeyDown(KeyCode.C))
+        if (Input.GetKeyDown(KeyCode.B))
         {
 
             if (Time.timeScale == .1f)
@@ -114,6 +124,7 @@ public class PlayerController : MonoBehaviour
         }
         jumpKey = Input.GetKey(KeyCode.Z);
         dashKey = Input.GetKey(KeyCode.X);
+        swordKey = Input.GetKey(KeyCode.C);
 
 
         //allows you to cancel the wall jump cooldown thing
@@ -127,6 +138,18 @@ public class PlayerController : MonoBehaviour
         {
             jumpBuffer = jumpBufferLength;
             Debug.Log("button pushed");
+        }
+
+        //this should probably be in fixed update but this is ok
+        if(swordKey && !hasSwung && !isSwinging)
+        {
+            hasSwung = true;
+            isSwinging = true;
+            Instantiate(swordPrefab).GetComponent<SwordHitBox>().Init(.1f, Vector2.one, new Vector2(1, 0), this.gameObject);
+        }
+        if(!isSwinging && !swordKey)
+        {
+            hasSwung = false;
         }
     }
 
@@ -347,6 +370,7 @@ public class PlayerController : MonoBehaviour
             rb.velocity = new Vector2(finalMoveSpeed, rb.velocity.y);
         }
         //play the dash burst once per dash
+        //wait does this fucking line make sense anymore
         if(lastDash != isDashing)
         {
             if(isDashing)
@@ -357,7 +381,7 @@ public class PlayerController : MonoBehaviour
             
             
         }
-        lastDash = isDashing;
+            lastDash = isDashing;
 
         coyoteBuffer -= 60 * Time.deltaTime;
         //if you fall off the ground like an idiot, attempt to snap back to the ground 
@@ -528,17 +552,27 @@ public class PlayerController : MonoBehaviour
     }
     private void ControlAnimations()
     {
+        //this is how it be for now
+        //had to make a simple custom shader graph to make normals flip correctly, which is what the setfloat stuff is here
         if (inputs.x > 0)
         {
+            flipX = false;
             GetComponent<SpriteRenderer>().flipX = false;
+            GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
             leftEar.GetComponent<SpriteRenderer>().flipX = false;
+            leftEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
             rightEar.GetComponent<SpriteRenderer>().flipX = false;
+            rightEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
         }
         if (inputs.x < 0)
         {
+            flipX = true;
             GetComponent<SpriteRenderer>().flipX = true;
+            GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
             leftEar.GetComponent<SpriteRenderer>().flipX = true;
+            leftEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
             rightEar.GetComponent<SpriteRenderer>().flipX = true;
+            rightEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
         }
 
 

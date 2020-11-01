@@ -3,7 +3,8 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - canHit
   layers:
   - Default
   - TransparentFX
@@ -17,7 +18,7 @@ TagManager:
   - Player
   - PlayerAccessories
   - Background
-  - 
+  - Enemies
   - 
   - 
   - 
@@ -40,4 +41,10 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: IgnoreLightingLayer
+    uniqueID: 212977569
+    locked: 0
+  - name: AceyLayer
+    uniqueID: 2919357257
     locked: 0
