@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using Elendow.SpritedowAnimator;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,6 +9,7 @@ public class SwordHitBox : MonoBehaviour
     public Vector2 size;
     public Vector2 position;
     public GameObject player;
+    public GameObject effectPrefab;
 
     public void Init(float _time, Vector2 _size, Vector2 _position, GameObject _player)
     {
@@ -16,20 +18,32 @@ public class SwordHitBox : MonoBehaviour
         size = _size;
         position = _position;
         player = _player;
+
+        GetComponent<SpriteRenderer>().flipX = player.GetComponent<PlayerController>().flipX;
+        
+        
+            //particleEffect.transform.rotation = Quaternion.Euler(-60, 90, 0);
+            //particleEffect.transform.position = new Vector2(_position.x - 5, _position.y - 5);
+       
     }
 
-   
-    private void OnTriggerEnter2D(Collider2D other)
+
+    private void OnTriggerStay2D(Collider2D other)
     {
         Debug.Log("please for the love of fuck");
         //check to see if this item can be hit
-        if (other.CompareTag("canHit"))
-        {
-            Debug.Log("hit!");
-            //get the hit reaction (make a seperate class later for other objects)
-            other.GetComponent<EnemyScript>().hitReaction();
 
-        }
+        //prevents the hitbox from being active frame 1 so that the animation can play in sync with the player
+        if (GetComponent<SpriteAnimator>().CurrentFrame > 0)
+            if (other.CompareTag("canHit"))
+            {
+                Debug.Log("hit!");
+                //particleEffect.GetComponent<ParticleSystem>().Play();
+                //get the hit reaction (make a seperate class later for other objects)
+                Instantiate(effectPrefab).GetComponent<PlayEffect>().Init(transform.position, "SlashImpact");
+                other.GetComponent<EnemyScript>().hitReaction();
+
+            }
     }
 
 
@@ -50,19 +64,23 @@ public class SwordHitBox : MonoBehaviour
     void Update()
     {
         time -= Time.deltaTime;
+
+        //GetComponent<SpriteAnimator>().onStop;
+
+
         //there is probably a way to make this cleaner, like just passing in the player's input or something
-        if(player.GetComponent<PlayerController>().flipX)
+        if (player.GetComponent<PlayerController>().flipX)
         {
-            transform.position = new Vector2(-position.x, position.y )+ (Vector2)player.transform.position;
+            transform.position = new Vector2(-position.x, position.y) + (Vector2)player.transform.position;
         }
         else
         {
             transform.position = position + (Vector2)player.transform.position;
         }
         //destroy self once the time runs out, also tell the player it can swing again
-        if(time <= 0)
+        if (time <= 0)
         {
-            player.GetComponent<PlayerController>().isSwinging = false;
+            //player.GetComponent<PlayerController>().isSwinging = false;
             Destroy(this.gameObject);
         }
     }

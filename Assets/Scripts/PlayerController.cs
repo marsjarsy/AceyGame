@@ -25,6 +25,7 @@ public class PlayerController : MonoBehaviour
     public float slopeRayLength = 1;
     public float coyoteBufferLength = 5;
     public float jumpBufferLength = 5;
+    public float groundSnapLength = 1f;
 
     [Header("Player Variables")]
     private float jump = 0;
@@ -41,6 +42,12 @@ public class PlayerController : MonoBehaviour
     public float jumpBuffer = 0;
     public float coyoteBuffer = 0;
     private float coyoteY = 0;
+
+    public float swingFirstLength = 1;
+    public float swingTimer = 0;
+    public float swingFirstCancel = .8f;
+
+
     //this should be able to do sword buffering
     private bool hasSwung = false;
     public bool isSwinging = false;
@@ -76,6 +83,7 @@ public class PlayerController : MonoBehaviour
     private bool gunKey = false;
     private bool swordKey = false;
     public Rigidbody2D rb;
+
 
     public Transform leftTransform;
     public Transform rightTransform;
@@ -140,17 +148,53 @@ public class PlayerController : MonoBehaviour
             Debug.Log("button pushed");
         }
 
+        
+
+        AttackHandler();
+        SlopeCheck();
+    }
+
+
+    private void AttackHandler()
+    {
         //this should probably be in fixed update but this is ok
-        if(swordKey && !hasSwung && !isSwinging)
+        swingTimer -= Time.deltaTime;
+        if (swordKey && !hasSwung && !isSwinging && swingTimer < 0)
         {
             hasSwung = true;
             isSwinging = true;
-            Instantiate(swordPrefab).GetComponent<SwordHitBox>().Init(.1f, Vector2.one, new Vector2(1, 0), this.gameObject);
+            Instantiate(swordPrefab).GetComponent<SwordHitBox>().Init(.2f, Vector2.one, new Vector2(1, 0), this.gameObject);
+            swingTimer = swingFirstLength;
+        }
+        //allows you to cancel the swing by walkin
+        if (swingTimer < swingFirstCancel && (inputs.x != 0 || dashKey || jumpKey))
+        {
+            isSwinging = false;
+        }
+        //prevents you from walking, jumping, or dashing while swinging
+        //this should probably be redone a touch but it works for now
+        if (isSwinging)
+        {
+            inputs = Vector2.zero;
+            dashKey = false;
+            jumpKey = false;
         }
         if(!isSwinging && !swordKey)
         {
             hasSwung = false;
+
         }
+
+        //!isSwinging  && !swordKey &&
+        if (swingTimer < 0)
+        {
+            
+            isSwinging = false;
+        }
+
+        
+
+
     }
 
     private float wallJumpCount = 0;
@@ -173,12 +217,12 @@ public class PlayerController : MonoBehaviour
             isGrounded = false;
             startJump = false;
         }
-        else
+        else if (rb.velocity.y <= 0 || (isGrounded))
         {
             isGrounded = Physics2D.OverlapCircle(groundTransform.position, groundCheckSize, ground);
         }
 
-        SlopeCheck();
+        
         MovePlayer();
         if (wallJumpCount > 0)
         {
@@ -206,7 +250,7 @@ public class PlayerController : MonoBehaviour
 
     private void SlopeCheck()
     {
-        Vector2 rayPosition = transform.position - new Vector3(0, .49f);
+        Vector2 rayPosition = transform.position - new Vector3(0, .49f + GetComponent<Collider2D>().offset.y);
 
         RaycastHit2D hit = Physics2D.Raycast(rayPosition, Vector2.down, 1, ground);
 
@@ -313,7 +357,7 @@ public class PlayerController : MonoBehaviour
             {
                 if (!isJumping)
                 {
-                    GroundSnap();
+                    //GroundSnap();
                 }
                 else
                 {
@@ -328,7 +372,7 @@ public class PlayerController : MonoBehaviour
             {
                 finalMoveSpeed = 10 * inputs.x;
             }
-            else if (GetComponent<SpriteRenderer>().flipX == true)
+            else if (flipX)
             {
                 finalMoveSpeed = -10;
                 dashBurstParticle.transform.localScale = new Vector3(-1, 1, 1);
@@ -408,12 +452,13 @@ public class PlayerController : MonoBehaviour
     private void GroundSnap()
     {
         Vector2 rayPosition = transform.position - new Vector3(0, .5f);
-        RaycastHit2D hit = Physics2D.Raycast(rayPosition, Vector2.down, .2f, ground);
+        RaycastHit2D hit = Physics2D.Raycast(rayPosition, Vector2.down, groundSnapLength, ground);
 
         if (hit)
         {
             snapPos = hit.point;
             transform.position = new Vector3(transform.position.x, hit.point.y + .5f, transform.position.z);
+            isGrounded = lastOnGround;
             Debug.Log("Snapped!");
         }
     }
@@ -554,11 +599,13 @@ public class PlayerController : MonoBehaviour
     {
         //this is how it be for now
         //had to make a simple custom shader graph to make normals flip correctly, which is what the setfloat stuff is here
+
+        string animName = "";
         if (inputs.x > 0)
         {
             flipX = false;
-            GetComponent<SpriteRenderer>().flipX = false;
-            GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
+            //GetComponent<SpriteRenderer>().flipX = false;
+            //GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
             leftEar.GetComponent<SpriteRenderer>().flipX = false;
             leftEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
             rightEar.GetComponent<SpriteRenderer>().flipX = false;
@@ -567,8 +614,8 @@ public class PlayerController : MonoBehaviour
         if (inputs.x < 0)
         {
             flipX = true;
-            GetComponent<SpriteRenderer>().flipX = true;
-            GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
+            //GetComponent<SpriteRenderer>().flipX = true;
+            //GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
             leftEar.GetComponent<SpriteRenderer>().flipX = true;
             leftEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
             rightEar.GetComponent<SpriteRenderer>().flipX = true;
@@ -584,41 +631,89 @@ public class PlayerController : MonoBehaviour
         {
             if (isDashing)
             {
-                animator.Play("AceyDashRough");
-                rightEarTarget.transform.localPosition = new Vector3(.1f, .5f, 0);
-                leftEarTarget.transform.localPosition = new Vector3(-.1f, .5f, 0);
+                //animator.Play("AceyDashRough");
+                animName = "AceyDashRough";
+                //rightEarTarget.transform.localPosition = new Vector3(.1f, .5f, 0);
+                //leftEarTarget.transform.localPosition = new Vector3(-.1f, .5f, 0);
             }
             else if (inputs.x != 0)
             {
-                animator.Play("AceyWalkRough");
+                //animator.Play("AceyWalkRough");
+                animName = "AceyWalkRough";
             }
             else
             {
-                animator.Play("AceyIdleRough");
+                //animator.Play("AceyIdleRough");
+                animName = "AceyIdleRough";
             }
         }
         else
         {
             if (rb.velocity.y < -2)
             {
-                animator.Play("AceyJumpRoughDown");
+                //animator.Play("AceyJumpRoughDown");
+                animName = "AceyJumpRoughDown";
             }
             else if (rb.velocity.y > -2 && rb.velocity.y < 2)
             {
 
-                animator.Play("AceyJumpRoughMid");
+                //animator.Play("AceyJumpRoughMid");
+                animName = "AceyJumpRoughMid";
 
             }
             else if (rb.velocity.y > 2)
             {
                 rightEarTarget.transform.localPosition = new Vector3(.1f, .7f, 0);
                 leftEarTarget.transform.localPosition = new Vector3(-.1f, .7f, 0);
-                animator.Play("AceyJumpRoughUp");
+                //animator.Play("AceyJumpRoughUp");
+                animName = "AceyJumpRoughUp";
 
             }
 
 
         }
+
+        if(isSwinging)
+        {
+            animName = "AceySwordSlashFirst";
+        }
+
+        //a fallback thing to make sure that if i don't have a flip sprite it will play the non flipped version
+        if(flipX)
+        {
+            bool hasAnim = false;
+            //check if the animation is found
+            foreach(SpriteAnimation anim in animator.animations)
+            {
+                if (anim.name == animName + "Flip")
+                {
+                    hasAnim = true;
+                    break;
+                }
+            }
+
+            
+            if (!hasAnim)
+            {
+                animator.Play(animName);
+                GetComponent<SpriteRenderer>().flipX = true;
+                GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
+            }
+            else
+            {
+                animator.Play(animName + "Flip");
+                GetComponent<SpriteRenderer>().flipX = false;
+                GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
+            }
+        }
+        else
+        {
+            animator.Play(animName);
+            GetComponent<SpriteRenderer>().flipX = false;
+            GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
+        }
+
+
     }
 
 

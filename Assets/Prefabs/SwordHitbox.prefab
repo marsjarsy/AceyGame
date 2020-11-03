@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 2912404594672391770}
   - component: {fileID: 2912404594672391771}
   - component: {fileID: 109688960610718666}
+  - component: {fileID: 870020179901921469}
   m_Layer: 0
   m_Name: SwordHitbox
   m_TagString: Untagged
@@ -28,7 +29,7 @@ Transform:
   m_GameObject: {fileID: 2912404594672391772}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 4.726, y: 3.824, z: -1.8959961}
-  m_LocalScale: {x: 2.1364048, y: 1.6091248, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
@@ -51,7 +52,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -71,7 +72,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 5
   m_Sprite: {fileID: 21300000, guid: 88a2621fbdafd3c46b12725913d569cb, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -125,3 +126,42 @@ MonoBehaviour:
   size: {x: 0, y: 0}
   position: {x: 0, y: 0}
   player: {fileID: 0}
+  effectPrefab: {fileID: 4954873441159757396, guid: d66ceaaf7b7845e4d803b3ca95a72c92,
+    type: 3}
+--- !u!114 &870020179901921469
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2912404594672391772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13a111613b7e1c6498923b16a649bc4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animations:
+  - {fileID: 11400000, guid: 217ef2156f870ff46a8960923d965f61, type: 2}
+  onFinish:
+    m_PersistentCalls:
+      m_Calls: []
+  onStop:
+    m_PersistentCalls:
+      m_Calls: []
+  onPlay:
+    m_PersistentCalls:
+      m_Calls: []
+  playOnAwake: 1
+  ignoreTimeScale: 0
+  delayBetweenLoops: 0
+  oneShot: 1
+  backwards: 0
+  randomAnimation: 0
+  disableRendererOnFinish: 0
+  startAtRandomFrame: 0
+  minDelayBetweenLoops: 0
+  maxDelayBetweenLoops: 2
+  startAnimation: SwordSlash1
+  loopType: 0
+  fallbackAnimation: {fileID: 11400000, guid: 217ef2156f870ff46a8960923d965f61, type: 2}
+  fallbackLoopType: 1

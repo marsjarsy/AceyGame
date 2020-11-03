@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77f76fefc0e73d4184cf86fd1488e0f, type: 3}
+  m_Name: AceySwordSlashFirst
+  m_EditorClassIdentifier: 
+  fps: 15
+  totalDuration: 16
+  frames:
+  - {fileID: 21300000, guid: 13f5a4a81a847564780a5c1ddebc1609, type: 3}
+  - {fileID: 21300000, guid: c97ffa323cca6a04f8112ae5c822df66, type: 3}
+  - {fileID: 21300000, guid: 7866ba29855715840b41ac5bebe23036, type: 3}
+  - {fileID: 21300000, guid: 9ea9ed68018816f44b815b9092b70d3d, type: 3}
+  - {fileID: 21300000, guid: a97f832e7ef3a8749b7997adcfcdcafa, type: 3}
+  - {fileID: 21300000, guid: 45bd175bb3ab40c46b9bd179c9ff73d0, type: 3}
+  - {fileID: 21300000, guid: a8738e5d1e78b034d85fafe0f995a1e5, type: 3}
+  - {fileID: 21300000, guid: 2ba747f91d0e3974a879b22886250b16, type: 3}
+  - {fileID: 21300000, guid: 36a17ec1bb6e41f4c937b429bd213b14, type: 3}
+  - {fileID: 21300000, guid: cacf3ce978a241b4389e3d9fbb0c59c1, type: 3}
+  - {fileID: 21300000, guid: 04b022658386088429b628ae46eea996, type: 3}
+  - {fileID: 21300000, guid: 2b0716d0937d39b4bbe75ed12d735c4d, type: 3}
+  - {fileID: 21300000, guid: 47357b666f4cf234cbb62a0f166e76f5, type: 3}
+  - {fileID: 21300000, guid: 4f5e6be148ff8de41a7bac6082fcb309, type: 3}
+  - {fileID: 21300000, guid: d36c8123636606440ad50f91ffe6d6cf, type: 3}
+  - {fileID: 21300000, guid: 3e718537d370b7d4d8c94111b420f2e7, type: 3}
+  framesDuration: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
