@@ -10,6 +10,7 @@ public class SwordHitBox : MonoBehaviour
     public Vector2 position;
     public GameObject player;
     public GameObject effectPrefab;
+    SpriteAnimator animator;
 
     public void Init(float _time, Vector2 _size, Vector2 _position, GameObject _player)
     {
@@ -18,6 +19,7 @@ public class SwordHitBox : MonoBehaviour
         size = _size;
         position = _position;
         player = _player;
+        animator = GetComponent<SpriteAnimator>();
 
         GetComponent<SpriteRenderer>().flipX = player.GetComponent<PlayerController>().flipX;
         
@@ -34,7 +36,7 @@ public class SwordHitBox : MonoBehaviour
         //check to see if this item can be hit
 
         //prevents the hitbox from being active frame 1 so that the animation can play in sync with the player
-        if (GetComponent<SpriteAnimator>().CurrentFrame > 0)
+        if (animator.CurrentFrame > 0)
             if (other.CompareTag("canHit"))
             {
                 Debug.Log("hit!");

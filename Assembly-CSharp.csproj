@@ -66,6 +66,10 @@
     <Compile Include="Assets\Scripts\AfterImageController.cs" />
     <Compile Include="Assets\Scripts\EarMove.cs" />
     <Compile Include="Assets\Scripts\EnemyScript.cs" />
+    <Compile Include="Assets\Scripts\NewController\Controller2D.cs" />
+    <Compile Include="Assets\Scripts\NewController\MovingPlatform.cs" />
+    <Compile Include="Assets\Scripts\NewController\Player.cs" />
+    <Compile Include="Assets\Scripts\NewController\RaycastController.cs" />
     <Compile Include="Assets\Scripts\ParallaxLayer.cs" />
     <Compile Include="Assets\Scripts\PlayEffect.cs" />
     <Compile Include="Assets\Scripts\PlayerController.cs" />

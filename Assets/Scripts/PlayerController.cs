@@ -1,15 +1,18 @@
 ﻿using Elendow.SpritedowAnimator;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
+using UnityEditor.U2D.Path.GUIFramework;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering.LWRP;
 using UnityEngine.Experimental.Rendering.Universal;
 
+[RequireComponent(typeof(Controller2D))]
 public class PlayerController : MonoBehaviour
 {
     //note to self, add the ears to this script to be able to move them if acey ever needs to teleport
 
-
+    Controller2D controller;
 
     [Header("Player Attributes")]
     public float moveSpeed = 1f;
@@ -29,9 +32,9 @@ public class PlayerController : MonoBehaviour
 
     [Header("Player Variables")]
     private float jump = 0;
-    private bool isDashing = false;
+    public bool isDashing = false;
     private bool isDashJumping = false;
-    private bool hasDashed = false;
+    public bool hasDashed = false;
     private bool isSliding = false;
     public bool isGrounded = false;
     public bool hasJumped = false;
@@ -46,6 +49,10 @@ public class PlayerController : MonoBehaviour
     public float swingFirstLength = 1;
     public float swingTimer = 0;
     public float swingFirstCancel = .8f;
+
+    public float jumpVelocity = 0;
+    public float timeToJumpApex = .5f;
+    public float jumpHeight = 1.25f;
 
 
     //this should be able to do sword buffering
@@ -89,7 +96,7 @@ public class PlayerController : MonoBehaviour
     public Transform rightTransform;
     public Transform groundTransform;
 
-    
+
 
     public float groundCheckSize = .25f;
 
@@ -97,26 +104,61 @@ public class PlayerController : MonoBehaviour
 
     private bool lastOnGround = false;
 
-    //https://youtu.be/QPiZSTEuZnw
-    public float slopeDownAngle;
-    private Vector2 slopeNormalPerp;
-    private float slopeDownAngleOld;
-    
-
     public LayerMask ground;
 
     public AfterImageController testController;
     public GameObject swordPrefab;
 
+    Vector2 velocity;
+
+    public TextMeshProUGUI text;
+
+    float velocityXSmoothing;
+
+    float currentFriction = 0;
+    float friction = .02f;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<SpriteAnimator>();
+        controller = GetComponent<Controller2D>();
 
+        gravity = -(jumpHeight * 2) / Mathf.Pow(timeToJumpApex, 2);
+        jumpVelocity = Mathf.Abs(gravity) * timeToJumpApex;
+
+        leftEar.transform.parent = null;
+        rightEar.transform.parent = null;
+
+        text = FindObjectOfType<TextMeshProUGUI>();
+        leftEarSprite = leftEar.GetComponent<SpriteRenderer>();
+        rightEarSprite = rightEar.GetComponent<SpriteRenderer>();
+        playerSprite = GetComponent<SpriteRenderer>();
+    }
+    //these are here to drastically cut down on the amount of GetComponent calls 
+    SpriteRenderer leftEarSprite;
+    SpriteRenderer rightEarSprite;
+    SpriteRenderer playerSprite;
+    private void FixedUpdate()
+    {
+        frames++;
+        //this is done in fixed update to prevent it making too many afterimages when in full speed
+        if (isDashing && frames % 2 == 0)
+        {
+            Color dashColor = new Color(.25f, 1, 1, 1);
+            //creates after images
+            Instantiate(testController).CreateAfterImage(dashColor, 10f, new Vector3(transform.position.x, transform.position.y, transform.position.z + 1),
+            animator.SpriteRenderer.sprite,playerSprite.flipX);
+            Instantiate(testController).CreateAfterImage(dashColor, 10f, new Vector3(rightEar.transform.position.x, rightEar.transform.position.y, transform.position.z + 1),
+            rightEarSprite.sprite, rightEarSprite.flipX);
+            Instantiate(testController).CreateAfterImage(dashColor, 10f, new Vector3(leftEar.transform.position.x, leftEar.transform.position.y, transform.position.z + 1),
+            leftEarSprite.sprite, leftEarSprite.flipX);
+        }
     }
     private void Update()
     {
+        text.text = (1 / Time.deltaTime).ToString() ;
+
         //debug thing,remove later please
         if (Input.GetKeyDown(KeyCode.B))
         {
@@ -148,11 +190,51 @@ public class PlayerController : MonoBehaviour
             Debug.Log("button pushed");
         }
 
+        if(inputs.x != 0)
+        {
+            controller.collisions.faceDir =(int)Mathf.Sign(inputs.x);
+        }
+
+
+
+        if (controller.collisions.below)
+            currentFriction = 0;
+        else
+            currentFriction = friction;
+        float targetX = inputs.x * moveSpeed;
+        //adds a slight amount of momentum to movement
+        velocity.x = Mathf.SmoothDamp(velocity.x, targetX, ref velocityXSmoothing, currentFriction);
+
         
 
+        //the player will reset to this position upon attempting a coyote jump
+        isGrounded = controller.collisions.below;
+
+        if (isGrounded)
+        {
+            coyoteY = transform.position.y;
+        }
+        if (controller.collisions.above || controller.collisions.below)
+            velocity.y = 0;
+
+        MovePlayer();
+
         AttackHandler();
-        SlopeCheck();
+
+        ControlAnimations();
+
+
+
+
+        velocity.y += gravity * Time.deltaTime;
+
+        controller.Move(velocity * Time.deltaTime);
+
+        
+
     }
+
+   
 
 
     private void AttackHandler()
@@ -179,7 +261,7 @@ public class PlayerController : MonoBehaviour
             dashKey = false;
             jumpKey = false;
         }
-        if(!isSwinging && !swordKey)
+        if (!isSwinging && !swordKey)
         {
             hasSwung = false;
 
@@ -188,208 +270,25 @@ public class PlayerController : MonoBehaviour
         //!isSwinging  && !swordKey &&
         if (swingTimer < 0)
         {
-            
+
             isSwinging = false;
         }
-
-        
-
-
     }
 
     private float wallJumpCount = 0;
     private int frames = 0;
-    private void FixedUpdate()
-    {
-        //the player will reset to this position upon attempting a coyote jump
-        if (isGrounded)
-        {
-            coyoteY = transform.position.y;
-        }
-
-        frames++;
-        //isGrounded = Physics2D.OverlapCircle(groundTransform.position, 0, ground);
-        if (startJump)
-        {
-            //start jump basically just checks if you started jumping this frame
-            //if yes, it ignores the ground check just to ensure you can get off the ground
-            //the entire ground check stuff needs to be cleaned up, but this should be ok
-            isGrounded = false;
-            startJump = false;
-        }
-        else if (rb.velocity.y <= 0 || (isGrounded))
-        {
-            isGrounded = Physics2D.OverlapCircle(groundTransform.position, groundCheckSize, ground);
-        }
-
-        
-        MovePlayer();
-        if (wallJumpCount > 0)
-        {
-            wallJumpCount -= .1f;
-        }
-        else
-        {
-            isWallJumping = false;
-        }
-        ControlAnimations();
-
-        if (isDashing && frames % 2 == 0)
-        {
-            Color dashColor = new Color(.25f, 1, 1, 1);
-            //creates after images
-            Instantiate(testController).CreateAfterImage(dashColor, 10f, new Vector3(transform.position.x, transform.position.y, transform.position.z + 1),
-            animator.SpriteRenderer.sprite, GetComponent<SpriteRenderer>().flipX);
-            Instantiate(testController).CreateAfterImage(dashColor, 10f, new Vector3(rightEar.transform.position.x, rightEar.transform.position.y, transform.position.z + 1),
-            rightEar.GetComponent<SpriteRenderer>().sprite, GetComponent<SpriteRenderer>().flipX);
-            Instantiate(testController).CreateAfterImage(dashColor, 10f, new Vector3(leftEar.transform.position.x, leftEar.transform.position.y, transform.position.z + 1),
-            leftEar.GetComponent<SpriteRenderer>().sprite, GetComponent<SpriteRenderer>().flipX);
-        }
-
-    }
-
-    private void SlopeCheck()
-    {
-        Vector2 rayPosition = transform.position - new Vector3(0, .49f + GetComponent<Collider2D>().offset.y);
-
-        RaycastHit2D hit = Physics2D.Raycast(rayPosition, Vector2.down, 1, ground);
-
-        RaycastHit2D hitLeft = Physics2D.Raycast(rayPosition, -transform.right, slopeRayLength, ground);
-        RaycastHit2D hitRight = Physics2D.Raycast(rayPosition, transform.right, slopeRayLength, ground);
-
-        //horizontal
-        if (hitRight)
-        {
-            onSlope = true;
-            slopeSideAngle = Vector2.Angle(hitRight.normal, Vector2.up);
-        }
-        else if (hitLeft)
-        {
-            onSlope = true;
-            slopeSideAngle = Vector2.Angle(hitLeft.normal, Vector2.up);
-        }
-        else
-        {
-            onSlope = false;
-            slopeSideAngle = 0;
-        }
-
-        //vertical
-        if (hit)
-        {
-
-            slopeNormalPerp = Vector2.Perpendicular(hit.normal).normalized;
-            slopeDownAngle = Vector2.Angle(hit.normal, Vector2.up);
-
-            if (slopeDownAngle != slopeDownAngleOld)
-            {
-                onSlope = true;
-            }
-
-            slopeDownAngleOld = slopeDownAngle;
-            Debug.DrawRay(hit.point, hit.normal, Color.green);
-            Debug.DrawRay(hit.point, slopeNormalPerp, Color.blue);
-        }
-        if ((slopeSideAngle < maxSlopeAngle || slopeDownAngle < 10) && isGrounded)
-        {
-            canWalkOnSlope = true;
-        }
-        else
-        {
-            canWalkOnSlope = false;
-        }
-
-        if (onSlope && inputs.x == 0 && canWalkOnSlope && !isDashing)
-        {
-            rb.sharedMaterial = fullFriction;
-        }
-        else
-        {
-            rb.sharedMaterial = noFriction;
-        }
 
 
-    }
 
     //countdown til the end of a dash
-    private float dashTimer = 0;
+    public float dashTimer = 0;
     //basically just a little thing to do the dash particles
     private bool lastDash = false;
     private void MovePlayer()
     {
 
-        //prevents too fast
-        if (rb.velocity.y > 50)
-            rb.velocity = new Vector2(rb.velocity.x, 50);
-
         Jump();
 
-        if (dashTimer <= 0 || !dashKey)
-        {
-            //allows you to extend a dash by jumping
-            if (!isDashJumping)
-            {
-                isDashing = false;
-                if (!dashKey)
-                {
-                    hasDashed = false;
-                }
-            }
-        }
-
-
-        if (dashKey && isGrounded && !hasDashed)
-        {
-            isDashing = true;
-            hasDashed = true;
-            dashTimer = 2;
-        }
-
-        //figure out move speed if dashing or whatever
-
-        float finalMoveSpeed;
-
-        if (isDashing)
-        {
-            jumpParticles.Play();
-            //is this needed lol
-            if (!isGrounded && !isDashJumping)
-            {
-                if (!isJumping)
-                {
-                    //GroundSnap();
-                }
-                else
-                {
-                    isDashJumping = true;
-                    dashBurstParticle.Stop();
-                }
-            }
-            dashTimer -= .11f;
-            //done to prevent some funky shit in the air
-            //basically emulating megaman zero/x's dash jump where you only move if you input
-            if (isDashJumping)
-            {
-                finalMoveSpeed = 10 * inputs.x;
-            }
-            else if (flipX)
-            {
-                finalMoveSpeed = -10;
-                dashBurstParticle.transform.localScale = new Vector3(-1, 1, 1);
-            }
-            else
-            {
-
-                finalMoveSpeed = 10;
-                dashBurstParticle.transform.localScale = new Vector3(1, 1, 1);
-            }
-        }
-        else
-        {
-            finalMoveSpeed = inputs.x * moveSpeed;
-            dashBurstParticle.Stop();
-        }
-        //just some funky shit for dash jumping wait why is this split up and not a single or what the fuck
         if (isDashJumping)
         {
             if (isGrounded || isSliding)
@@ -400,35 +299,84 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        //slope handling baby. from the youtube video earlier
-        if (isGrounded && !onSlope)
+        if (dashTimer <= 0 || !dashKey)
         {
-            rb.velocity = new Vector2(finalMoveSpeed, 0);
+            //allows you to extend a dash by jumping
+            if (!isDashJumping)
+            {
+                isDashing = false;
+                if (!dashKey)
+                {
+                    hasDashed = false;
+                    dashTimer = -1;
+                }
+            }
         }
-        else if (isGrounded && onSlope && canWalkOnSlope && !isJumping)
+
+
+        if (dashKey && isGrounded && !hasDashed && dashTimer < 0)
         {
-            rb.velocity = new Vector2(slopeNormalPerp.x * -finalMoveSpeed, slopeNormalPerp.y * -finalMoveSpeed);
+            Debug.Log("dash start baby");
+            isDashing = true;
+            hasDashed = true;
+            dashTimer = .05f;
         }
-        else if (!isGrounded && !isWallJumping)
+
+        dashTimer -= .11f * Time.deltaTime;
+        if (isDashing)
         {
-            rb.velocity = new Vector2(finalMoveSpeed, rb.velocity.y);
+            jumpParticles.Play();
+            //is this needed lol
+
+            if (isJumping)
+            {
+                //just to make sure you can jump from a slope
+                if (controller.collisions.fallen && !isGrounded)
+                {
+                    controller.collisions.below = false;
+                }
+                isDashJumping = true;
+                dashBurstParticle.Stop();
+            }
+
+            //done to prevent some funky shit in the air
+            //basically emulating megaman zero/x's dash jump where you only move if you input
+            float flip = (flipX) ? -1 : 1;
+            if (isDashJumping)
+            {
+                velocity.x = 10 * inputs.x;
+            }
+            else
+            {
+                velocity.x = 10 * flip;
+                dashBurstParticle.transform.localScale = new Vector3(flip, 1, 1);
+            }
         }
+        else
+        {
+            velocity.x = inputs.x * moveSpeed;
+            dashBurstParticle.Stop();
+        }
+        //just some funky shit for dash jumping wait why is this split up and not a single or what the fuck
+
+
+
         //play the dash burst once per dash
         //wait does this fucking line make sense anymore
-        if(lastDash != isDashing)
+        if (lastDash != isDashing)
         {
-            if(isDashing)
+            if (isDashing)
             {
                 dashBurstParticle.Play();
-                Debug.Log("burst");
             }
-            
-            
+
+
         }
-            lastDash = isDashing;
+        lastDash = isDashing;
 
         coyoteBuffer -= 60 * Time.deltaTime;
         //if you fall off the ground like an idiot, attempt to snap back to the ground 
+
         if (lastOnGround != isGrounded)
         {
             if (!isGrounded)
@@ -436,46 +384,32 @@ public class PlayerController : MonoBehaviour
 
                 if (!isJumping)
                 {
-                    GroundSnap();
                     coyoteBuffer = coyoteBufferLength;
                 }
             }
             else
             {
+                //if(coyoteBuffer < 0)
                 jumpBurstParticle.Play();
             }
         }
         lastOnGround = isGrounded;
     }
-    //shoots a short ray and moves the player to the ground if it hits
-    private Vector2 snapPos = Vector2.zero;
-    private void GroundSnap()
-    {
-        Vector2 rayPosition = transform.position - new Vector3(0, .5f);
-        RaycastHit2D hit = Physics2D.Raycast(rayPosition, Vector2.down, groundSnapLength, ground);
 
-        if (hit)
-        {
-            snapPos = hit.point;
-            transform.position = new Vector3(transform.position.x, hit.point.y + .5f, transform.position.z);
-            isGrounded = lastOnGround;
-            Debug.Log("Snapped!");
-        }
-    }
     private void Jump()
     {
-        bool leftWall = Physics2D.OverlapBox(leftTransform.position, new Vector2(.01f, .75f), 0f, ground);
-        bool rightWall = Physics2D.OverlapBox(rightTransform.position, new Vector2(.01f, .75f), 0f, ground);
+        bool leftWall = controller.collisions.left;
+        bool rightWall = controller.collisions.right;
         if (isJumping && isGrounded)
             isJumping = false;
 
         //lower gravity at the height of a jump but only while holding the jump key like in celeste
-        if (rb.velocity.y > -1 && rb.velocity.y < 1 && !isGrounded && !isSliding && jumpKey && hasJumped)
+        if (velocity.y > -1 && velocity.y < 1 && !isGrounded && !isSliding && jumpKey && hasJumped)
         {
-            rb.gravityScale = jumpPeakGravityScale;
+            //rb.gravityScale = jumpPeakGravityScale;
         }
         else
-            rb.gravityScale = gravity;
+        // rb.gravityScale = gravity;
 
 
         if ((jumpKey && (isGrounded) && !hasJumped) || (((jumpBuffer > 0 && isGrounded) || coyoteBuffer > 0) && jumpKey))
@@ -484,13 +418,19 @@ public class PlayerController : MonoBehaviour
             {
                 //this part was inspired by this tweet here https://twitter.com/dhindes/status/1238348754790440961?s=20
                 transform.position = new Vector3(transform.position.x, coyoteY, transform.position.z);
-                rb.velocity = new Vector2(rb.velocity.x, 0);
             }
             coyoteBuffer = -100;
-            rb.sharedMaterial = noFriction;
             jump = jumpForce;
+
+            if(controller.collisions.descendingSlope)
+            {
+                controller.collisions.descendingSlope = false;
+                controller.collisions.below = false;
+            }    
+
+
             //this makes it function a tad better on slopes. there's a big of spaghetti rn but everything mostly works
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            velocity.y = jumpVelocity;
             startJump = true;
             hasJumped = true;
             isJumping = true;
@@ -503,22 +443,22 @@ public class PlayerController : MonoBehaviour
             jump = 0;
         }
         //variable jump, cut the jump when you release the button
-        if (!jumpKey && hasJumped && rb.velocity.y > 0 && !(isGrounded || isSliding))
+        if (!jumpKey && hasJumped && velocity.y > 0 && !(isGrounded || isSliding))
         {
-            rb.velocity = new Vector2(rb.velocity.x, 0);
+            velocity = new Vector2(velocity.x, 0);
             jump = 0;
         }
         //if you are pushing into a wall in the air
         if (((leftWall && inputs.x < 0) || (rightWall && inputs.x > 0)) && !isGrounded)
         {
-            if (rb.velocity.y < 0)
+            if (velocity.y < 0)
                 isSliding = true;
         }
         else
         {
             isSliding = false;
         }
-
+        /*
         if (leftWall || rightWall)
         {
             if (jumpKey && !hasJumped)
@@ -528,13 +468,13 @@ public class PlayerController : MonoBehaviour
                 {
                     //rb.AddRelativeForce(new Vector2((1 * moveSpeed) + jumpForce + 5, jumpForce));
                     //rb.velocity = new Vector2(1 * jumpForce, jumpForce * 1.2f);
-                    rb.AddForce(new Vector2(jumpForce / 2, wallJumpForce), ForceMode2D.Force);
+                    //rb.AddForce(new Vector2(jumpForce / 2, wallJumpForce), ForceMode2D.Force);
                 }
                 if (rightWall)
                 {
                     //rb.AddRelativeForce(new Vector2((-1 * moveSpeed) + -jumpForce - 5, jumpForce));
                     //rb.velocity = new Vector2(-1 * jumpForce, jumpForce * 1.2f);
-                    rb.AddForce(new Vector2(-jumpForce / 2, wallJumpForce), ForceMode2D.Force);
+                    //rb.AddForce(new Vector2(-jumpForce / 2, wallJumpForce), ForceMode2D.Force);
                 }
                 isWallJumping = true;
                 isSliding = false;
@@ -548,17 +488,17 @@ public class PlayerController : MonoBehaviour
         }
         wallJumpCounter -= Time.deltaTime;
 
-        jumpBuffer -= 60 * Time.deltaTime;
+        
+        */
 
 
 
-
-
+        jumpBuffer -= Time.deltaTime;
         //stupid but just for testing
         if (isSliding)
         {
-            rb.velocity = Vector2.zero;
-            rb.transform.Translate(new Vector2(0, -2.5f * Time.deltaTime));
+            //rb.velocity = Vector2.zero;
+            //rb.transform.Translate(new Vector2(0, -2.5f * Time.deltaTime));
 
             //move the particle to the correct wall for aesthetics
             if (leftWall)
@@ -586,7 +526,7 @@ public class PlayerController : MonoBehaviour
             slideParticles.Stop();
         }
         //funky particles fordash jumps
-        if(isDashJumping)
+        if (isDashJumping)
         {
             jumpParticles.Play();
         }
@@ -606,20 +546,20 @@ public class PlayerController : MonoBehaviour
             flipX = false;
             //GetComponent<SpriteRenderer>().flipX = false;
             //GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
-            leftEar.GetComponent<SpriteRenderer>().flipX = false;
-            leftEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
-            rightEar.GetComponent<SpriteRenderer>().flipX = false;
-            rightEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
+            leftEarSprite.flipX = false;
+            leftEarSprite.material.SetFloat("FlipX", 0);
+            rightEarSprite.flipX = false;
+            rightEarSprite.material.SetFloat("FlipX", 0);
         }
         if (inputs.x < 0)
         {
             flipX = true;
             //GetComponent<SpriteRenderer>().flipX = true;
             //GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
-            leftEar.GetComponent<SpriteRenderer>().flipX = true;
-            leftEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
-            rightEar.GetComponent<SpriteRenderer>().flipX = true;
-            rightEar.GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
+            leftEarSprite.flipX = true;
+            leftEarSprite.material.SetFloat("FlipX", 1);
+            rightEarSprite.flipX = true;
+            rightEarSprite.material.SetFloat("FlipX", 1);
         }
 
 
@@ -649,19 +589,19 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            if (rb.velocity.y < -2)
+            if (velocity.y < -2)
             {
                 //animator.Play("AceyJumpRoughDown");
                 animName = "AceyJumpRoughDown";
             }
-            else if (rb.velocity.y > -2 && rb.velocity.y < 2)
+            else if (velocity.y > -2 && velocity.y < 2)
             {
 
                 //animator.Play("AceyJumpRoughMid");
                 animName = "AceyJumpRoughMid";
 
             }
-            else if (rb.velocity.y > 2)
+            else if (velocity.y > 2)
             {
                 rightEarTarget.transform.localPosition = new Vector3(.1f, .7f, 0);
                 leftEarTarget.transform.localPosition = new Vector3(-.1f, .7f, 0);
@@ -673,17 +613,17 @@ public class PlayerController : MonoBehaviour
 
         }
 
-        if(isSwinging)
+        if (isSwinging)
         {
             animName = "AceySwordSlashFirst";
         }
 
         //a fallback thing to make sure that if i don't have a flip sprite it will play the non flipped version
-        if(flipX)
+        if (flipX)
         {
             bool hasAnim = false;
             //check if the animation is found
-            foreach(SpriteAnimation anim in animator.animations)
+            foreach (SpriteAnimation anim in animator.animations)
             {
                 if (anim.name == animName + "Flip")
                 {
@@ -692,25 +632,25 @@ public class PlayerController : MonoBehaviour
                 }
             }
 
-            
+
             if (!hasAnim)
             {
                 animator.Play(animName);
-                GetComponent<SpriteRenderer>().flipX = true;
-                GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 1);
+                playerSprite.flipX = true;
+                playerSprite.material.SetFloat("FlipX", 1);
             }
             else
             {
                 animator.Play(animName + "Flip");
-                GetComponent<SpriteRenderer>().flipX = false;
-                GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
+                playerSprite.flipX = false;
+                playerSprite.material.SetFloat("FlipX", 0);
             }
         }
         else
         {
             animator.Play(animName);
-            GetComponent<SpriteRenderer>().flipX = false;
-            GetComponent<SpriteRenderer>().material.SetFloat("FlipX", 0);
+            playerSprite.flipX = false;
+            playerSprite.material.SetFloat("FlipX", 0);
         }
 
 
